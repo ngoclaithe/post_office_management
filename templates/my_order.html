@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block title %}Đơn hàng{% endblock %}
+
+{% block stylesheet %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="hero-section">
+        <h1>Đơn hàng đã phân công</h1>
+    </div>
+
+    <div class="features-section">
+        <div class="row" id="orders-list">
+        </div>
+    </div>
+</div>
+
+<script>
+    const user_id = {{ session['user_id'] if session['user_id'] is not none else 'null' }};
+    
+    if (user_id) {
+        fetch(`/laydonhangphancong?shipper_id=${user_id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const ordersList = document.getElementById('orders-list');
+                    data.forEach(order => {
+                        const orderCard = document.createElement('div');
+                        orderCard.classList.add('col-md-4');
+                        orderCard.classList.add('feature-link');
+                        orderCard.innerHTML = `
+                            <div class="feature-card">
+                                <h3>📦 Mã vận đơn: ${order.ma_van_don}</h3>
+                                <p>Địa chỉ nhận: ${order.dia_chi_nhan}</p>
+                                <p>Số điện thoại: ${order.so_dien_thoai}</p>
+                                <p>Tên người nhận: ${order.ten_nguoi_nhan}</p>
+                            </div>
+                        `;
+                        ordersList.appendChild(orderCard);
+                    });
+                } else {
+                    const ordersList = document.getElementById('orders-list');
+                    ordersList.innerHTML = "<p>Không có đơn hàng nào được phân công.</p>";
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching orders:", error);
+            });
+    }
+</script>
+{% endblock %}

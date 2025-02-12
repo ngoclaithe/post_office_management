@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+{% block title %}Tạo đơn hàng mới{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Tạo đơn hàng mới</h2>
+
+    <div class="card">
+        <div class="card-header">Thông tin đơn hàng</div>
+        <div class="card-body">
+            <form action="{{ url_for('order.create_order') }}" method="POST">
+                <div class="form-group">
+                    <label for="sender_name">Người gửi</label>
+                    <input type="text" class="form-control" id="sender_name" name="sender_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="sender_phone">SĐT người gửi</label>
+                    <input type="text" class="form-control" id="sender_phone" name="sender_phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="receiver_name">Người nhận</label>
+                    <input type="text" class="form-control" id="receiver_name" name="receiver_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="receiver_phone">SĐT người nhận</label>
+                    <input type="text" class="form-control" id="receiver_phone" name="receiver_phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="work_receiver">Bưu cục tiếp nhận</label>
+                    <select class="form-control" id="work_receiver" name="work_receiver" required>
+                        <option value="">Chọn bưu cục tiếp nhận</option>
+                        <option value="buucuc1">Bưu cục 1</option>
+                        <option value="buucuc2">Bưu cục 2</option>
+                        <option value="buucuc3">Bưu cục 3</option>
+                        <option value="buucuc4">Bưu cục 4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="receiver_address">Địa chỉ người nhận</label>
+                    <input type="text" class="form-control" id="receiver_address" name="receiver_address" required>
+                </div>
+                <div class="form-group">
+                    <label>Chọn vị trí giao hàng trên bản đồ</label>
+                    <div id="map" style="height: 400px; margin-bottom: 15px;"></div>
+                    <input type="hidden" id="shipping_fee" name="shipping_fee">
+                </div>
+                <div class="form-group">
+                    <label>Chi phí vận chuyển dự tính: <span id="estimated_cost">0</span> VNĐ</label>
+                </div>
+                <div class="form-group">
+                    <label for="weight">Trọng lượng (kg)</label>
+                    <input type="number" step="0.01" class="form-control" id="weight" name="weight" required>
+                </div>
+                <div class="form-group">
+                    <label for="declared_value">Giá trị khai báo (VNĐ)</label>
+                    <input type="number" step="0.01" class="form-control" id="declared_value" name="declared_value" required>
+                </div>
+                <div class="form-group">
+                    <label for="note">Ghi chú (tuỳ chọn)</label>
+                    <textarea class="form-control" id="note" name="note"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Tạo đơn</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const defaultPostOffice = [20.011625824887012, 105.98075234708251];
+    let deliveryMarker = null;
+    let map = null;
+
+    function initMap() {
+        if (map) return;
+        
+        map = L.map('map').setView(defaultPostOffice, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        L.marker(defaultPostOffice).addTo(map)
+            .bindPopup('Vị trí mặc định')
+            .openPopup();
+
+        map.on('click', function(e) {
+            const clickedLocation = [e.latlng.lat, e.latlng.lng];
+            
+            if (deliveryMarker) {
+                map.removeLayer(deliveryMarker);
+            }
+            
+            deliveryMarker = L.marker(clickedLocation).addTo(map)
+                .bindPopup('Địa điểm giao hàng')
+                .openPopup();
+
+            const distance = calculateDistance(defaultPostOffice, clickedLocation);
+            const cost = Math.round(distance * 3000); 
+            
+            document.getElementById('estimated_cost').textContent = cost.toLocaleString();
+            document.getElementById('shipping_fee').value = cost;
+        });
+    }
+
+    function calculateDistance(point1, point2) {
+        const R = 6371; 
+        const lat1 = point1[0] * Math.PI / 180;
+        const lat2 = point2[0] * Math.PI / 180;
+        const deltaLat = (point2[0] - point1[0]) * Math.PI / 180;
+        const deltaLon = (point2[1] - point1[1]) * Math.PI / 180;
+
+        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; 
+    }
+
+    initMap();
+
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function(event) {
+        event.preventDefault(); 
+
+        const formData = new FormData(form);
+        
+        fetch("{{ url_for('order.create_order') }}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message); 
+                form.reset(); 
+            } else {
+                alert(data.message); 
+            }
+        })
+        .catch(error => {
+            alert('Có lỗi xảy ra khi gửi yêu cầu.'); 
+        });
+    });
+});
+</script>
+{% endblock %}

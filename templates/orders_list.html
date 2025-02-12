@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}Danh sách đơn hàng{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Danh sách đơn hàng</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Mã vận đơn</th>
+                <th>Người gửi</th>
+                <th>Người nhận</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.tracking_number }}</td>
+                <td>{{ order.sender_name }}</td>
+                <td>{{ order.receiver_name }}</td>
+                <td>{{ order.status }}</td>
+                <td>
+                    <a href="{{ url_for('order.update_order', id=order.id, status='Đang vận chuyển') }}" class="btn btn-sm btn-info">Đang vận chuyển</a>
+                    <a href="{{ url_for('order.update_order', id=order.id, status='Đã giao') }}" class="btn btn-sm btn-success">Đã giao</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

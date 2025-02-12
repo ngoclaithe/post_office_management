@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block title %}Thống kê{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">Thống kê xuất/nhập kho</h2>
+
+    <div class="row">
+        <div class="col-md-4">
+            <label for="reportDate" class="form-label">Chọn ngày:</label>
+            <input type="date" id="reportDate" class="form-control">
+        </div>
+
+        <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-danger w-100" onclick="generateReport('export')">
+                Báo cáo xuất kho
+            </button>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="generateReport('import')">
+                Báo cáo nhập kho
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateReport(type) {
+    const selectedDate = document.getElementById("reportDate").value;
+    if (!selectedDate) {
+        alert("Vui lòng chọn ngày trước khi tạo báo cáo.");
+        return;
+    }
+
+    const endpoint = type === "export" ? "/report/export" : "/report/import";
+
+    fetch(`${endpoint}?date=${selectedDate}`, {
+        method: "GET"
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error); });
+        }
+        return response.blob(); 
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `BaoCao_${type === "export" ? "XuatKho" : "NhapKho"}_${selectedDate}.pdf`;
+        document.body.appendChild(a);
+        a.click(); 
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url); 
+    })
+    .catch(error => {
+        console.error("Lỗi:", error);
+        alert(error.message || "Không thể tải báo cáo.");
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+{% block title %}Quản lý đơn hàng{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Danh sách đơn hàng</h2>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label for="senderPhone">Số điện thoại người gửi:</label>
+                        <input type="text" class="form-control" id="senderPhone" placeholder="Nhập số điện thoại người gửi...">
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="form-group">
+                        <label for="receiverPhone">Số điện thoại người nhận:</label>
+                        <input type="text" class="form-control" id="receiverPhone" placeholder="Nhập số điện thoại người nhận...">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-secondary form-control" id="clearSearch">Xóa tìm kiếm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Mã vận đơn</th>
+                        <th>Người gửi</th>
+                        <th>Người nhận</th>
+                        <th>Giá tiền ship</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody id="orderTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const orderTableBody = document.getElementById("orderTableBody");
+    const senderPhone = document.getElementById("senderPhone");
+    const receiverPhone = document.getElementById("receiverPhone");
+    const clearSearch = document.getElementById("clearSearch");
+    
+    let allOrders = []; 
+
+    function fetchOrders() {
+        fetch("/danhsachorder?json=true")
+            .then(response => response.json())
+            .then(data => {
+                allOrders = data; 
+                displayOrders(allOrders); 
+            })
+            .catch(error => console.error("Lỗi khi tải danh sách đơn hàng:", error));
+    }
+
+    function displayOrders(orders) {
+        orderTableBody.innerHTML = "";
+        orders.forEach(order => {
+            const row = `
+                <tr>
+                    <td>${order.id}</td>
+                    <td>${order.tracking_number}</td>
+                    <td>${order.sender_name}</td>
+                    <td>${order.receiver_name}</td>
+                    <td>${order.shipping_fee}</td>
+                    <td>${order.status}</td>
+                </tr>
+            `;
+            orderTableBody.innerHTML += row;
+        });
+    }
+
+    function filterOrders() {
+        const senderPhoneValue = senderPhone.value.trim().toLowerCase();
+        const receiverPhoneValue = receiverPhone.value.trim().toLowerCase();
+
+        if (!senderPhoneValue && !receiverPhoneValue) {
+            displayOrders(allOrders);
+            return;
+        }
+
+        const filteredOrders = allOrders.filter(order => {
+            const matchSender = !senderPhoneValue || order.sender_phone?.toLowerCase().includes(senderPhoneValue);
+            const matchReceiver = !receiverPhoneValue || order.receiver_phone?.toLowerCase().includes(receiverPhoneValue);
+            return matchSender && matchReceiver;
+        });
+
+        displayOrders(filteredOrders);
+    }
+
+    senderPhone.addEventListener("input", filterOrders);
+    receiverPhone.addEventListener("input", filterOrders);
+
+    clearSearch.addEventListener("click", function() {
+        senderPhone.value = "";
+        receiverPhone.value = "";
+        filterOrders();
+    });
+
+    fetchOrders();
+});
+</script>
+{% endblock %}

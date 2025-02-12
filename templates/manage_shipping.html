@@ -1,0 +1,158 @@
+{% extends "layout.html" %}
+{% block title %}Quản lý vận chuyển{% endblock %}
+
+{% block content %}
+<div class="container">
+    <p class="text-end mb-2">
+        Nhân viên điều phối: {{ session['full_name'] }} - {{ session['work_place'] }}
+    </p>
+    
+    <h2 class="text-center my-4">Điều phối hàng hóa</h2>
+    <div class="row">
+        <div class="col-md-4" id="order-column">
+            <h4>Danh sách đơn hàng</h4>
+            <div class="list-container">
+                <ul class="list-group" id="order-list"></ul>
+            </div>
+        </div>
+        <div class="col-md-4" id="shipper-column" style="display: none;">
+            <h4>Danh sách nhân viên giao hàng</h4>
+            <div class="list-container">
+                <ul class="list-group" id="shipper-list"></ul>
+            </div>
+        </div>
+        <div class="col-md-4" id="postoffice-column" style="display: none;">
+            <h4>Danh sách bưu cục lân cận</h4>
+            <div class="list-container">
+                <ul class="list-group" id="post-office-list">
+                    <li class="list-group-item">
+                        <input type="radio" name="selected_post_office" value="1"> Bưu cục 1
+                    </li>
+                    <li class="list-group-item">
+                        <input type="radio" name="selected_post_office" value="2"> Bưu cục 2
+                    </li>
+                    <li class="list-group-item">
+                        <input type="radio" name="selected_post_office" value="3"> Bưu cục 3
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="text-center mt-4">
+        <button class="btn btn-primary" id="assign-order">Điều phối hàng</button>
+    </div>
+</div>
+
+<style>
+.list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    background: #fff;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const workPlace = "{{ session['work_place'] }}";
+
+    function attachToggleRadio(radio) {
+        radio.addEventListener('mousedown', function(e) {
+            this.wasChecked = this.checked;
+        });
+        radio.addEventListener('click', function(e) {
+            if (this.wasChecked) {
+                this.checked = false;
+                const event = new Event('change', { bubbles: true });
+                this.dispatchEvent(event);
+            }
+        });
+    }
+
+    document.querySelectorAll('input[name="selected_post_office"]').forEach(radio => {
+        attachToggleRadio(radio);
+    });
+
+    fetch(`/laydanhsachhanghoa?work_place=${encodeURIComponent(workPlace)}`)
+        .then(response => response.json())
+        .then(data => {
+            const orderList = document.getElementById("order-list");
+            data.forEach(order => {
+                const listItem = document.createElement("li");
+                listItem.classList.add("list-group-item");
+                listItem.innerHTML = `
+                    <input type="radio" name="selected_order" value="${order.ma_van_don}"> 
+                    <strong>${order.ma_van_don}</strong> - ${order.dia_chi_nhan} - ${order.so_dien_thoai}`;
+                orderList.appendChild(listItem);
+                
+                const radio = listItem.querySelector('input[type="radio"]');
+                attachToggleRadio(radio);
+            });
+        });
+
+    document.getElementById("order-list").addEventListener("change", function(e) {
+        if (e.target && e.target.name === "selected_order") {
+            document.getElementById("shipper-column").style.display = "block";
+            document.getElementById("postoffice-column").style.display = "block";
+            
+            if (document.getElementById("shipper-list").childElementCount === 0) {
+                fetch(`/laydanhsachgiaohang?work_place=${encodeURIComponent(workPlace)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const shipperList = document.getElementById("shipper-list");
+                        data.forEach(shipper => {
+                            const listItem = document.createElement("li");
+                            listItem.classList.add("list-group-item");
+                            listItem.innerHTML = `
+                                <input type="radio" name="selected_shipper" value="${shipper.id_shipper}"> 
+                                <strong>${shipper.full_name}</strong> - ${shipper.phone}`;
+                            shipperList.appendChild(listItem);
+                            
+                            const radio = listItem.querySelector('input[type="radio"]');
+                            attachToggleRadio(radio);
+                        });
+                    });
+            }
+        }
+    });
+    
+    document.getElementById("assign-order").addEventListener("click", function() {
+        const selectedOrder = document.querySelector('input[name="selected_order"]:checked');
+        const selectedShipper = document.querySelector('input[name="selected_shipper"]:checked');
+        const selectedPostOffice = document.querySelector('input[name="selected_post_office"]:checked');
+
+        if (!selectedOrder) {
+            alert("Vui lòng chọn đơn hàng!");
+            return;
+        }
+        if ((selectedShipper && selectedPostOffice) || (!selectedShipper && !selectedPostOffice)) {
+            alert("Vui lòng chọn CHỈ 1 từ danh sách nhân viên giao hàng hoặc danh sách bưu cục!");
+            return;
+        }
+
+        let requestData = { ma_van_don: selectedOrder.value };
+        if (selectedShipper) {
+            requestData.id_shipper = selectedShipper.value;
+            
+        }
+        if (selectedPostOffice) {
+            requestData.id_post_office = selectedPostOffice.value;
+        }
+        
+        fetch("/quanlyvandon", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        })
+        .catch(error => console.error("Lỗi:", error));
+    });
+});
+</script>
+{% endblock %}

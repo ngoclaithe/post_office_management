@@ -1,0 +1,225 @@
+{% extends "layout.html" %}
+{% block title %}Quản lý kho{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center my-4">Quản lý kho</h2>
+
+    <div class="mb-3">
+        <p><strong>Nhân viên kho hàng:</strong> <span id="warehouse-staff">{{ session['full_name'] }}</span></p>
+        <p><strong>Bưu cục:</strong> <span id="warehouse-location">{{ session['work_place'] }}</span></p>
+    </div>
+
+    <div class="mb-3">
+        <button id="import-warehouse" class="btn btn-secondary">Nhập kho</button>
+    </div>
+
+    <table class="table table-bordered" id="warehouse-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Mã vận đơn</th>
+                <th>Nhân viên giao hàng phụ trách</th>
+                <th>Thời gian tạo</th>
+                <th>Bưu cục</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">Nhập Kho</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="tracking-number" class="form-label">Mã vận đơn</label>
+                    <input type="text" class="form-control" id="tracking-number" placeholder="Nhập mã vận đơn">
+                </div>
+                <div class="mb-3">
+                    <label for="workplace" class="form-label">Bưu cục</label>
+                    <input type="text" class="form-control" id="workplace" value="{{ session['work_place'] }}" readonly>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirm-import">Xác nhận nhập kho</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">Chọn Tài Xế</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="driver-select" class="form-label">Tài xế</label>
+                    <select class="form-control" id="driver-select">
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirm-export">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const workplace = document.getElementById("warehouse-location").textContent.trim();
+    let currentExportId = null;
+
+    function loadWarehouseData() {
+        if (workplace) {
+            fetch(`/laydanhsachkhohang/${encodeURIComponent(workplace)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector("#warehouse-table tbody");
+                    tbody.innerHTML = "";
+                    data.forEach(item => {
+                        const createTime = item.create_time 
+                            ? new Date(item.create_time).toLocaleString("vi-VN") 
+                            : "Chưa cập nhật";
+
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${item.id}</td>
+                            <td>${item.tracking_number}</td>
+                            <td>${item.shipper || "Chưa có"}</td>
+                            <td>${createTime}</td>
+                            <td>${item.workplace}</td>
+                            <td class="status">${item.status || "Chưa cập nhật"}</td>
+                            <td>
+                                ${item.status === 'Sẵn sàng' 
+                                    ? `<button class="btn btn-danger btn-sm export-btn" data-id="${item.id}">Xuất kho</button>`
+                                    : ''}
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    document.querySelectorAll(".export-btn").forEach(button => {
+                        button.addEventListener("click", function() {
+                            currentExportId = this.getAttribute("data-id");
+                            loadDrivers();
+                        });
+                    });
+                })
+                .catch(error => console.error("Lỗi khi fetch danh sách kho hàng:", error));
+        }
+    }
+    function loadDrivers() {
+        fetch(`/laydanhsachgiaohang?work_place=${encodeURIComponent(workplace)}`)
+            .then(response => response.json())
+            .then(drivers => {
+                const select = document.getElementById("driver-select");
+                select.innerHTML = '<option value="">Chọn tài xế</option>';
+                drivers.forEach(driver => {
+                    const option = document.createElement("option");
+                    option.value = driver.id_shipper;
+                    option.textContent = driver.full_name;
+                    select.appendChild(option);
+                });
+    
+                const modalElement = document.getElementById("exportModal");
+                if (modalElement) {
+                    const exportModal = new bootstrap.Modal(modalElement);
+                    exportModal.show();
+                } else {
+                    console.error("Không tìm thấy modal exportModal!");
+                }
+            })
+            .catch(error => {
+                console.error("Lỗi khi tải danh sách tài xế:", error);
+                alert("Không thể tải danh sách tài xế");
+            });
+    }
+    
+    
+
+    document.getElementById("confirm-export").addEventListener("click", function() {
+        const driverId = document.getElementById("driver-select").value;
+        console.log("Gia tri driver id la", driverId);
+        if (!driverId) {
+            alert("Vui lòng chọn tài xế!");
+            return;
+        }
+
+        fetch("/xuatkho", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                id: currentExportId,
+                driver_id: driverId 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("Xuất kho thành công!");
+                const row = document.querySelector(`button[data-id="${currentExportId}"]`).closest("tr");
+                row.querySelector(".status").textContent = "Đang vận chuyển";
+                row.querySelector("td:last-child").innerHTML = "";
+                bootstrap.Modal.getInstance(document.getElementById("exportModal")).hide();
+            } else {
+                alert("Lỗi xuất kho: " + data.message);
+            }
+        })
+        .catch(error => console.error("Lỗi khi xuất kho:", error));
+    });
+
+    document.getElementById("import-warehouse").addEventListener("click", function() {
+        const importModal = new bootstrap.Modal(document.getElementById("importModal"));
+        importModal.show();
+    });
+
+    document.getElementById("confirm-import").addEventListener("click", function() {
+        const trackingNumber = document.getElementById("tracking-number").value.trim();
+        const workplaceValue = document.getElementById("workplace").value.trim();
+
+        if (!trackingNumber) {
+            alert("Vui lòng nhập mã vận đơn!");
+            return;
+        }
+
+        fetch("/nhapkho", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tracking_number: trackingNumber, workplace: workplaceValue })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                document.getElementById("tracking-number").value = "";
+                bootstrap.Modal.getInstance(document.getElementById("importModal")).hide();
+                loadWarehouseData();
+            } else {
+                alert("Lỗi nhập kho: " + data.message);
+            }
+        })
+        .catch(error => console.error("Lỗi khi nhập kho:", error));
+    });
+
+    loadWarehouseData();
+});
+</script>
+{% endblock %}
