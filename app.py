@@ -1,5 +1,5 @@
 from flask import Flask
-from waitress import serve  # Import waitress
+from waitress import serve  
 from models import db, init_db
 from routes.auth import auth_bp
 from routes.main import main_bp
