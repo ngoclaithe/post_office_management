@@ -1,5 +1,5 @@
-
 from flask import Flask
+from waitress import serve  # Import waitress
 from models import db, init_db
 from routes.auth import auth_bp
 from routes.main import main_bp
@@ -21,5 +21,6 @@ app.register_blueprint(tracking_bp)
 app.register_blueprint(shipping_bp)
 app.register_blueprint(warehouse_bp)
 app.register_blueprint(report_bp)
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    serve(app, host="0.0.0.0", port=5000) 
