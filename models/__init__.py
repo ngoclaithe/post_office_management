@@ -7,7 +7,6 @@ def init_db(app):
     with app.app_context():
         from models.user import User
         from models.order import Order
-        from models.shipment import Shipment
         from models.warehouse import Warehouse
         from models.order_shipper import OrderShipper
 
